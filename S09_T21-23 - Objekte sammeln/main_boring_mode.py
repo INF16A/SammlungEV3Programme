@@ -27,23 +27,29 @@ motor_grabber = Motor(Port.D)
 motor_l = Motor(Port.B)
 motor_r = Motor(Port.C)
 robot = DriveBase(motor_l, motor_r, 56, 114) # wheel diameter (mm) | axle track (mm)
-color_sensor = ColorSensor(Port.S4)
 ultrasonic = UltrasonicSensor(Port.S1)
+color_sensor_ramp = ColorSensor(Port.S2)
+collision_button = TouchSensor(Port.S3)
+color_sensor_floor = ColorSensor(Port.S4)
 watch = StopWatch()
 # ultrasonic2 = UltrasonicSensor(Port.S3)
 
-collision_threshhold = 400  # mm
-maximum_ball_count = 4      # size of storage container
+collision_threshhold = 200  # mm
+maximum_ball_count = 20      # size of storage container
 random_direction_change_interval = 5000
-drive_speed = 100           # mm/s
-rotation_speed = 45         # deg/s
+drive_speed = 200           # mm/s
+rotation_speed = 90         # deg/s
 calibration_surface = -1
+calibration_ramp = -1
 
 ball_count = 0
 
 def collision_avoidance():
     dist = ultrasonic.distance()
-    if dist < collision_threshhold:
+    touch = collision_button.pressed()
+    if touch:
+            robot.drive_time(-drive_speed, 0, 500)
+    if dist < collision_threshhold or touch:
         robot.drive_time(0, 45, 500)
         collision_avoidance() # check if collision free
 
@@ -65,13 +71,16 @@ def grab_ball():
     return
 
 def check_ball():
-    # if color_sensor.color() == Color.RED:
-    if color_sensor.color() != calibration_surface:
+    # if color_sensor_floor.color() == Color.RED:
+    if color_sensor_floor.color() != calibration_surface:
         robot.stop()
         grab_ball()
 
 def random_negate():
     return [-1,1][random.randrange(2)]
+
+def check_container_full():
+    return color_sensor_ramp.color() != calibration_ramp
 
 global last_direction_change
 last_direction_change = 0
@@ -81,13 +90,16 @@ motor_arm.run_until_stalled(100, Stop.COAST, 30)
 motor_arm.reset_angle(0)
 motor_grabber.run_until_stalled(100, Stop.COAST, 30)
 motor_grabber.reset_angle(0)
-calibration_surface = color_sensor.color()
+calibration_surface = color_sensor_floor.color()
+calibration_ramp = color_sensor_ramp.color()
 
 while ball_count < 4:
     global last_direction_change
 
     collision_avoidance()
     check_ball()
+    if check_container_full():
+        break
 
     # run every 1s
     if watch.time() - last_direction_change > random_direction_change_interval:
@@ -103,9 +115,9 @@ while ball_count < 4:
     # brick.display.text(ultrasonic.presence(), (0, 20))
     # wait(200)
     # brick.display.text(ultrasonic.distance(), (0, 40))
-    # brick.display.text(color_sensor.rgb(), (0,10))
-    # brick.display.text(color_sensor.reflection(), (0,20))
-    # brick.display.text(color_sensor.color(), (0,30))
+    # brick.display.text(color_sensor_floor.rgb(), (0,10))
+    # brick.display.text(color_sensor_floor.reflection(), (0,20))
+    # brick.display.text(color_sensor_floor.color(), (0,30))
     # print(ultrasonic.presence())
     # print(ultrasonic.distance())
     # ultrasonic2.distance()
